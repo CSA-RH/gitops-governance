@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: legacy-billing
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: 'http://gitea.git-server.svc.cluster.local:3000/acme/acme-workloads.git'
+    targetRevision: main
+    path: standalone/legacy-billing
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: acme-legacy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        argocd.argoproj.io/managed-by: openshift-gitops

@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: git-server
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-data
+  namespace: git-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: git-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      containers:
+        - name: gitea
+          image: gitea/gitea:1.21-rootless
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              CURRENT_UID=$(id -u)
+
+              # Generate app.ini if missing, or align RUN_USER with the current runtime UID
+              if [ ! -f /var/lib/gitea/app.ini ]; then
+                cat << EOF > /var/lib/gitea/app.ini
+              APP_NAME = ACME GitOps Server
+              RUN_MODE = prod
+              RUN_USER = ${CURRENT_UID}
+
+              [repository]
+              ROOT = /var/lib/gitea/git/repositories
+              DEFAULT_BRANCH = main
+
+              [database]
+              DB_TYPE = sqlite3
+              PATH = /var/lib/gitea/gitea.db
+
+              [security]
+              INSTALL_LOCK = true
+              SECRET_KEY = acmegitopssecretkey123456789012
+
+              [server]
+              SSH_DOMAIN = localhost
+              HTTP_PORT = 3000
+              ROOT_URL = http://localhost:3000/
+              DISABLE_SSH = true
+
+              [service]
+              DISABLE_REGISTRATION = false
+              REQUIRE_SIGNIN_VIEW = false
+              EOF
+              else
+                # Update RUN_USER in existing PVC config file
+                sed -i "s/^RUN_USER.*/RUN_USER = ${CURRENT_UID}/" /var/lib/gitea/app.ini
+              fi
+
+              exec gitea web --config /var/lib/gitea/app.ini --work-path /var/lib/gitea
+          ports:
+            - containerPort: 3000
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          env:
+            - name: HOME
+              value: /var/lib/gitea
+            - name: TMPDIR
+              value: /tmp
+          volumeMounts:
+            - mountPath: /var/lib/gitea
+              name: gitea-storage
+            - mountPath: /tmp
+              name: temp-dir
+      volumes:
+        - name: gitea-storage
+          persistentVolumeClaim:
+            claimName: gitea-data
+        - name: temp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+  namespace: git-server
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  selector:
+    app: gitea
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: gitea
+  namespace: git-server
+spec:
+  to:
+    kind: Service
+    name: gitea
+  port:
+    targetPort: http
