@@ -267,6 +267,7 @@ metadata:
   annotations:
     # Re-render only if changes occur in the overlay (.) or its shared base (../../base)
     argocd.argoproj.io/manifest-generate-paths: '.;../../base'
+```
 
 ---
 
