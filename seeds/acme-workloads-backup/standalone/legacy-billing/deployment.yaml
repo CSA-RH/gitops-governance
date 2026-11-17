@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-billing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legacy-billing
+  template:
+    metadata:
+      labels:
+        app: legacy-billing
+    spec:
+      containers:
+        - name: service
+          image: openshift/hello-openshift
+          ports:
+            - containerPort: 8080
+          env:
+            - name: RESPONSE
+              value: "ACME Legacy Billing Service [PRE-EXISTING APP]"

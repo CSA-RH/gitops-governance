@@ -1,0 +1,10 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: legacy-billing
+spec:
+  to:
+    kind: Service
+    name: legacy-billing
+  port:
+    targetPort: 8080
