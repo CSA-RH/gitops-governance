@@ -101,7 +101,7 @@ crc start
 1. Log in to your CRC cluster as `kubeadmin`:
    ```bash
    eval $(crc oc-env)
-   oc login -u kubeadmin [https://api.crc.testing:6443](https://api.crc.testing:6443)
+   oc login -u kubeadmin https://api.crc.testing:6443
    ```
 
 2. Run the full automated bootstrap:
